@@ -82,3 +82,15 @@ distinguen `unique` de `anchored`.
 
 Umbrales, corpus y funciones objetivo **no cambian**. Ese par de desarrollo
 queda incluido en la medición y se reporta igual que los demás.
+
+## Enmienda 2 (post-hoc, DESPUÉS de la corrida 1)
+
+La corrida 1 (`results/box-2026-10-29-run1.json`, código del commit 4f29106)
+**no cumplió**: S1 y S2 dieron 36/48 (75 %), 0 FP. Los 12 misses de cada
+escenario son todos de `opt-level=s`, donde rustc no alinea funciones a 16 y la
+búsqueda alineada a 16 nunca podía encontrarlas.
+
+Cambio: la alineación se infiere del gemelo (16 si ≥ 90 % de sus funciones
+empiezan alineadas a 16; si no, 1). Es un arreglo hecho **después de ver
+resultados**, así que la corrida 2 no es una medición ciega: se publica junto a
+la corrida 1, que queda como el resultado pre-registrado no cumplido.

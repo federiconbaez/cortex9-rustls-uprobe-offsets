@@ -2,7 +2,7 @@ import os, re, subprocess, sys, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from rpo.elf import Elf, ElfError
 from rpo.sig import parse_objdump, mask_instruction, to_regex, TARGETS
-from rpo.match import search
+from rpo.match import search, infer_align
 
 SAMPLE = """
 0000000000149150 <x>:
@@ -55,6 +55,12 @@ class TestSearch(unittest.TestCase):
         self.assertTrue(rx.match(b".x*"))
         self.assertFalse(rx.match(b"ax*"))
         self.assertTrue(rx.match(b".\n*"))  # comodín incluye \n
+
+class TestAlign(unittest.TestCase):
+    def test_infer_align(self):
+        self.assertEqual(infer_align({"f": [(0x1000, 4)], "g": [(0x1010, 4)]}), 16)
+        self.assertEqual(infer_align({"f": [(0x1003, 4)], "g": [(0x1010, 4)]}), 1)
+        self.assertEqual(search(0x1000, b"\xcc\x55\xc3", [0x55, 0xC3], align=1), [0x1001])
 
 class TestElf(unittest.TestCase):
     def test_text_section_matches_readelf(self):

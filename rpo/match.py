@@ -7,12 +7,25 @@ ALIGN = 16
 def search(text_addr, text, sig, align=ALIGN):
     """Direcciones (vaddr) alineadas donde la firma coincide."""
     rx = to_regex(sig)
+    if align == 1:
+        import re
+        la = re.compile(b"(?=" + rx.pattern + b")", re.S)
+        return [text_addr + m.start() for m in la.finditer(text)]
     hits = []
     start = (-text_addr) % align
     for pos in range(start, len(text) - len(sig) + 1, align):
         if rx.match(text, pos):
             hits.append(text_addr + pos)
     return hits
+
+def infer_align(funcs, threshold=0.9):
+    """Alineación de funciones del gemelo: 16 si >= 90 % de las funciones empiezan alineadas
+    a 16 (lo normal en opt-level 1/2/3), 1 si no (opt-level s/z no alinea)."""
+    addrs = [a for vals in funcs.values() for (a, _s) in vals]
+    if not addrs:
+        return 1
+    share = sum(1 for a in addrs if a % 16 == 0) / len(addrs)
+    return 16 if share >= threshold else 1
 
 ANCHOR_WINDOW = 0x10000
 ANCHOR_MAX = 8
@@ -54,7 +67,7 @@ def disambiguate(ref_path, addr, hits, text_addr, text, align, funcs):
         return best[0][0], best[0][1], used
     return None, (best[0][1] if best else 0), used
 
-def resolve(ref_path, target_path, align=ALIGN):
+def resolve(ref_path, target_path, align=None):
     """Resuelve las funciones objetivo de `ref_path` (con símbolos) en `target_path` (strippeado).
     Devuelve {clave: {status, vaddr?, file_offset?, candidates}}; status ∈ {ok, ambiguous, notfound}."""
     targets = find_targets(ref_path)
@@ -62,10 +75,13 @@ def resolve(ref_path, target_path, align=ALIGN):
     text_addr, text = elf.section(".text")
     out = {}
     funcs = None
+    if align is None:
+        funcs = nm_functions(ref_path)
+        align = infer_align(funcs)
     for key, (addr, size) in sorted(targets.items()):
         sig = signature(ref_path, addr, size)
         hits = search(text_addr, text, sig, align)
-        r = {"candidates": len(hits), "sig_len": len(sig),
+        r = {"candidates": len(hits), "sig_len": len(sig), "align": align,
              "masked": sum(1 for b in sig if b is None)}
         if len(hits) == 1:
             r.update(status="ok", method="unique", vaddr=hits[0],

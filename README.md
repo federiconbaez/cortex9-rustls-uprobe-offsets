@@ -74,6 +74,12 @@ esto:
 
 Si tracefs no está o el registro falla, el job falla. No hay salteos.
 
+Resultado en CI ([run 40929672808](https://github.com/federiconbaez/cortex9-rustls-uprobe-offsets/actions/runs/40929672808),
+kernel `7.0.0-1017-azure`, rustc 1.99.1, mismo código que la corrida 2): la
+re-medición en el runner dio igual que en la box (S1 48/48, S2 48/48, S3 9/48,
+0 FP). El smoke registró **48 uprobes**, los 48 con hits (16 o 18 por probe según
+la app), con **0 crashes** y 0 fallas.
+
 ## Alcance y lo que NO está verificado
 
 - Sólo x86-64 ELF, rustls 0.23.x con proveedor `ring` y el toolchain del

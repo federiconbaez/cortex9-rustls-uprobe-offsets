@@ -64,3 +64,21 @@ Para cada offset resuelto en S2 sobre los strippeados se registra un uprobe
 por tracefs (`/sys/kernel/tracing/uprobe_events`, offset de archivo), se
 ejecuta el binario strippeado y se exige: código de salida 0 (no crashea) y
 ≥ 1 hit por probe. Si tracefs no está o el registro falla, el job **falla**.
+
+## Enmienda 1 (antes de la medición completa)
+
+En una prueba de desarrollo con un solo par (0.23.46, opt-level 1, app-a → app-b)
+se vio que `Writer::write` compila a un trampolín de 10 bytes
+(`mov …; jmp *0x18(%rcx)`, despacho dinámico al `PlaintextSink`) que coincide
+en 5 lugares del `.text`. Con la regla original eso es siempre un miss.
+
+Se agrega un paso, fijado acá antes de medir el corpus completo: si una firma
+tiene **varias** coincidencias, se toman hasta 8 funciones rustls vecinas del
+gemelo (±64 KiB, tamaño ≥ 32 bytes) como **anclas**; las que coinciden de forma
+única en el objetivo proponen `ancla + (objetivo − ancla en el gemelo)`. Se
+acepta un candidato sólo si tiene apoyo de **≥ 2 anclas** y ningún otro
+candidato tiene apoyo. Si no, sigue siendo ambiguo (miss). Los resultados
+distinguen `unique` de `anchored`.
+
+Umbrales, corpus y funciones objetivo **no cambian**. Ese par de desarrollo
+queda incluido en la medición y se reporta igual que los demás.

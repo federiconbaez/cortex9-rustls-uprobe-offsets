@@ -3,3 +3,4 @@ corpus-out/
 __pycache__/
 *.pyc
 .gitenv
+build.log

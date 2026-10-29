@@ -1,0 +1,34 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: tests unitarios
+        run: python3 -m unittest tests.test_unit -v
+  corpus:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: construir corpus (3 versiones x 4 opt-level x 2 apps)
+        run: scripts/build_corpus.sh
+      - name: tests de integración sobre el corpus
+        run: python3 -m unittest tests.test_corpus -v
+      - name: medición (falla si hay algún falso positivo en S1/S2)
+        run: python3 scripts/measure.py corpus-out results-ci.json
+      - name: smoke attach real con uprobes (sudo, falla si no puede)
+        run: sudo -E env "PATH=$PATH" scripts/smoke_attach.sh corpus-out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-ci
+          path: |
+            results-ci.json
+            corpus-out/toolchain.txt
